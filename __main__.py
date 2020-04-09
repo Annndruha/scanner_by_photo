@@ -5,21 +5,26 @@ import time
 import cv2
 import numpy as np
 import imutils
-from fpdf import FPDF
+#from fpdf import FPDF
 
 from scanner_func import *
 
 
 #pdf = FPDF()
-imagelist = os.listdir('docs')
+#imagelist = os.listdir('docs')
 
-for img_name in imagelist:
-    img = cv2.imread('docs/'+img_name)
-    sucsess, img = transform_better(img)
-    if sucsess: img = to_A4(img)
+#for img_name in imagelist:
+img_name = '1.jpg'
+img = cv2.imread('docs/'+img_name)
+sucsess, img = transform(img)
 
-    print(img_name +' '+str(sucsess))
-    cv2.imwrite('docs_res/'+img_name, img)
+#if sucsess: img = to_A4(img)
+
+cv2.imshow('Img',img)
+cv2.waitKey(0)
+
+#print(img_name +' '+str(sucsess))
+#cv2.imwrite('docs_res/'+img_name, img)
 
 
     #pdf.add_page()
