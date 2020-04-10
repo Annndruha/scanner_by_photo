@@ -6,9 +6,9 @@ import numpy as np
 import math
 from random import randint
 from scanner_func import *
+from matplotlib import pyplot as plt
 
-
-orig = cv2.imread('docs/1.jpg')
+orig = cv2.imread(f'docs/0.jpg')
 img_gray = cv2.cvtColor(orig.copy(), cv2.COLOR_BGR2GRAY)
 h_y = img_gray.shape[0]
 w_x = img_gray.shape[1]
@@ -39,62 +39,120 @@ conturs_map = cv2.drawContours(blank_img, cnt,-1,(255,0,0), 3)
 cdst = cv2.cvtColor(conturs_map, cv2.COLOR_GRAY2BGR)
 lines_normal = cv2.HoughLines(conturs_map, 2, np.pi/180, 50, None, 0, 0)
 if len(lines_normal)>40: lines_normal = lines_normal[:40]
+lines_normal = np.array([lines_normal[i][0] for i in range(0,len(lines_normal))])
 #blank_img_rgb = cv2.cvtColor(np.zeros((h_y,w_x),dtype='uint8'), cv2.COLOR_GRAY2BGR)
 blank_img_rgb = orig.copy()
-
+#===================================================================================================================================
 lines = []
 for l in lines_normal:
-    A = math.cos(l[0][1]) * l[0][0]
-    B = math.sin(l[0][1]) * l[0][0]
-    C = -A*A-B*B
-    lines.append([A,B,C])
+    if l[0]<0:
+        lines.append([abs(l[0]),np.pi + l[1]])
+    else:
+        lines.append([l[0],l[1]])
+lines = np.array(lines)
+lines = lines[lines[:,1].argsort()] # First sort doesn't need to be stable.
+lines = lines[lines[:,0].argsort(kind='mergesort')]
+#lines = lines[lines[:,2].argsort(kind='mergesort')]
+#plt.plot((lines.T)[0],(lines.T)[1],'ro',color='green')
+#===================================================================================================================================
 
-points = []
-for i, l1 in enumerate(lines):
-    for j, l2 in enumerate(lines):
-        if i != j:
-            det = (l1[0]*l2[1]-l2[0]*l1[1])
-            if abs(det)>10**-8:
-                x = -(l1[2]*l2[1]-l2[2]*l1[1])/det
-                y = -(l1[0]*l2[2]-l2[0]*l1[2])/det
-                if not (np.isinf(x) or np.isinf(y)):
-                    if ((0<x<w_x) and (0<y<h_y)):
-                        points.append([x,y])
-                        blank_img_rgb - cv2.circle(blank_img_rgb,(int(x),int(y)),2,(0,255,0),-1)
-points_av = [[],[],[],[]]
-for p in points:
-    if p[0]<w_x/2 and p[1]<h_y/2:
-        points_av[0].append(p)
-    elif p[0]<w_x/2 and p[1]>h_y/2:
-        points_av[1].append(p)
-    elif p[0]>w_x/2 and p[1]<h_y/2:
-        points_av[2].append(p)
-    elif p[0]>w_x/2 and p[1]>h_y/2:
-        points_av[3].append(p)
+lines_group =[]
+lines_group.append([lines[0]])
+for i in range(len(lines)-1):
+    if abs(lines[i+1][0]-lines[i][0])<201:
+        if abs(lines[i+1][1]-lines[i][1])<0.4:
+            lines_group[len(lines_group)-1].append(lines[i+1])
+        elif abs(lines[i+1][1]-lines[i][1])>2*np.pi-0.4:
+            if lines[i+1][1]>2*np.pi-0.4:#===========================================================THIS BLOCK WORK BAD
+                lines[i+1][1] = lines[i+1][1]-2*np.pi
+            lines_group[len(lines_group)-1].append(lines[i+1])
+        else:
+            lines_group.append([lines[i+1]])
+    else:
+        lines_group.append([lines[i+1]])
 
-corners = [[],[],[],[]]
-for i, p_av in enumerate(points_av):
-    corners[i] = np.array(points_av[i]).T
-    corners[i] = (int(np.average(corners[i][0])),int(np.average(corners[i][1])))
-    blank_img_rgb - cv2.circle(blank_img_rgb,corners[i],5,(255,127,255),-1)
+#===================================================================================================================================
+fig, ax = plt.subplots(1,2)
+ax[0].scatter((lines.T)[0],(lines.T)[1])
+for group in lines_group:
+    group = np.array(group)
+    ax[1].scatter((group.T)[0], (group.T)[1])#,'ro')#, color='tab:blue'
 
-#for line in lines:
-#    rho = line[0][0]
-#    theta = line[0][1]
 
-#    a = math.cos(theta)
-#    b = math.sin(theta)
-#    x0 = a * rho
-#    y0 = b * rho
+lines_group = sorted(lines_group, key=len)
+for i, group in enumerate(lines_group):
+    group = np.array(group).T
+    rho_av=np.average(group[0])
+    theta_av=np.average(group[1])
+    lines_group[i] = [[rho_av,theta_av]]
+#lines_group = lines_group[:4]
 
-#    LINE_LEN = 3000
-#    pt1 = (int(x0 + LINE_LEN*(-b)), int(y0 + LINE_LEN*(a)))
-#    pt2 = (int(x0 - LINE_LEN*(-b)), int(y0 - LINE_LEN*(a)))
-#    blank_img_rgb = cv2.line(blank_img_rgb, pt1, pt2, (0,0,255), 2, cv2.LINE_AA)
-    #blank_img_rgb = cv2.line(blank_img_rgb, pt1, pt2, (0,0,255), 1, cv2.LINE_AA)
-    #blank_img_rgb = cv2.line(blank_img_rgb, (0,0), (int(x0),int(y0)), (0,255,0), 1, cv2.LINE_AA)
-cv2.imshow('Standard Hough Line Transform', imutils.resize(blank_img_rgb, height = 600))
 
+#===================================================================================================================================
+for i, lines in enumerate(lines_group):
+    #clr = np.random.choice(range(256), size=3)
+    clr = [0,0,255]
+    print(f'Gr= {i}')
+    for line in lines:
+        rho = line[0]
+        theta = line[1]
+        print(rho, end='    ')
+        print(theta)
+
+        a = math.cos(theta)
+        b = math.sin(theta)
+        x0 = a * rho
+        y0 = b * rho
+
+
+        LINE_LEN = 3000
+        pt1 = (int(x0 + LINE_LEN*(-b)), int(y0 + LINE_LEN*(a)))
+        pt2 = (int(x0 - LINE_LEN*(-b)), int(y0 - LINE_LEN*(a)))
+        blank_img_rgb = cv2.line(blank_img_rgb, pt1, pt2, (int(clr[0]),int(clr[1]),int(clr[2])), 1, cv2.LINE_AA)
+        cv2.imshow('Standard Hough Line Transform', imutils.resize(blank_img_rgb, height = 600))
+        c = cv2.waitKey(4)
+
+
+plt.show()
+
+    
+#===================================================================================================================================
+#lines = []
+#for l in lines_normal:
+#    A = math.cos(l[1]) * l[0]
+#    B = math.sin(l[1]) * l[0]
+#    C = -A*A-B*B
+#    lines.append([A,B,C])
+
+#points = []
+#for i, l1 in enumerate(lines):
+#    for j, l2 in enumerate(lines):
+#        if i != j:
+#            det = (l1[0]*l2[1]-l2[0]*l1[1])
+#            if abs(det)>10**-8:
+#                x = -(l1[2]*l2[1]-l2[2]*l1[1])/det
+#                y = -(l1[0]*l2[2]-l2[0]*l1[2])/det
+#                if not (np.isinf(x) or np.isinf(y)):
+#                    if ((0<x<w_x) and (0<y<h_y)):
+#                        points.append([x,y])
+#                        blank_img_rgb - cv2.circle(blank_img_rgb,(int(x),int(y)),2,(0,255,0),-1)
+
+#points_av = [[],[],[],[]]
+#for p in points:
+#    if p[0]<w_x/2 and p[1]<h_y/2:
+#        points_av[0].append(p)
+#    elif p[0]<w_x/2 and p[1]>h_y/2:
+#        points_av[1].append(p)
+#    elif p[0]>w_x/2 and p[1]<h_y/2:
+#        points_av[2].append(p)
+#    elif p[0]>w_x/2 and p[1]>h_y/2:
+#        points_av[3].append(p)
+
+#corners = [[],[],[],[]]
+#for i, p_av in enumerate(points_av):
+#    corners[i] = np.array(points_av[i]).T
+#    corners[i] = (int(np.average(corners[i][0])),int(np.average(corners[i][1])))
+#    blank_img_rgb - cv2.circle(blank_img_rgb,corners[i],5,(255,0,0),-1)
 
 
 #===================================================================================================================================
@@ -138,9 +196,6 @@ cv2.imshow('Standard Hough Line Transform', imutils.resize(blank_img_rgb, height
 
 #cv2.imshow('Out', imutils.resize(img_out, height = 600))
 c = cv2.waitKey(0)
-
-
-
 
 
 
