@@ -128,7 +128,7 @@ def transform_better(orig):
 
 		persp_error = max(diag1,diag2)/min(diag1,diag2)
 		
-		if persp_error>1.5:
+		if persp_error>1.08:
 			return False, orig
 		else:
 			rect = np.array(cnt[0])
@@ -138,19 +138,17 @@ def transform_better(orig):
 		return False, orig
 
 def to_A4(img):
-	h, w, d = img.shape
-	if h>w:
-		w2 = (w+h)/2
-		h2 = w2*sqrt(2)
-		img = cv2.resize(img,(int(w2),int(h2)))
-	else:
-		h2 = (w+h)/2
-		w2 = h2*sqrt(2)
-		img = cv2.resize(img,(int(w2),int(h2)))
+	w, h, d = img.shape
+	if abs((float(w)/float(h))/sqrt(2)-1)<0.08:
+		h = int(w*sqrt(2))
+		img = cv2.resize(img,(w,h))
+	if abs((float(h)/float(w))/sqrt(2)-1)<0.08:
+		w = int(h*sqrt(2))
+		img = cv2.resize(img,(w,h))
 	return img
 
 
-def cahnge_contrast_and_brightness(img, cont=0, beta=0):
+def cahnge_contrast_and_brightness(img, cont, beta):
 	try:
 		cont = int(cont)/100
 		beta = int(beta)
